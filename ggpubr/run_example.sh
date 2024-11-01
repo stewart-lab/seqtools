@@ -8,4 +8,4 @@
 (sleep 3 && open http://localhost:8787) &
 
 # Run the docker container
-docker run --rm -v "$(pwd)/data":/mnt/data -p 8787:8787 -e PASSWORD=password rmillikin/ggpubr:latest
+docker run --rm -v "$(pwd)/example_data":/mnt/data -p 8787:8787 -e PASSWORD=password rmillikin/ggpubr:latest

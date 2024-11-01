@@ -1,0 +1,1 @@
+docker run --rm -v "$(pwd)/example_data":/mnt/data rmillikin/deseq2:latest --design /mnt/data/design.csv --counts /mnt/data/counts.csv --contrasts /mnt/data/contrasts.csv --output_dir /mnt/data/output
