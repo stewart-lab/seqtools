@@ -8,4 +8,5 @@ RUN apt-get update && apt-get install -y \
     libz-dev
 
 # Install ggpubr and optparse
-RUN R -e "install.packages(c('ggpubr', 'optparse'), repos='https://cloud.r-project.org')"
+RUN R -e "install.packages(c('BiocManager', 'ggpubr', 'optparse', 'circlize', 'RColorBrewer'), repos='https://cloud.r-project.org')"
+RUN R -e "BiocManager::install(c('ComplexHeatmap'))"
