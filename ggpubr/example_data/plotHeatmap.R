@@ -1,3 +1,6 @@
+# see documentation for ComplexHeatmap to see annotation options, etc.
+# https://jokergoo.github.io/ComplexHeatmap-reference/book/heatmap-annotations.html
+
 suppressPackageStartupMessages(library("optparse"))
 suppressPackageStartupMessages(library("ggpubr"))
 suppressPackageStartupMessages(library("ComplexHeatmap"))
@@ -5,9 +8,27 @@ suppressPackageStartupMessages(library("circlize"))
 
 # get the .csv from optparse
 # Define the command-line options
+# 1. data file (must be a CSV file for now)
+# 2. output file type (e.g., SVG, PNG, PDF, etc.) - TODO
+# 3. max - default 2.0
+# 4. min - default -2.0
+# 5. min_color - hex code for min color - default #185295
+# 6. mid_color - hex code for mid color - default white
+# 7. max_color - hex code for max color - default #c41f1f
 option_list <- list(
     make_option(c("--data"), type = "character", default = NULL,
-                help = "Path to the data CSV file", metavar = "character")
+                help = "Path to the data CSV file", metavar = "character"),
+    make_option(c("--max"), type = "numeric", default = 2.0,
+                help = "Maximum value for the heatmap color scale", metavar = "numeric"),
+    make_option(c("--min"), type = "numeric", default = -2.0,
+                help = "Minimum value for the heatmap color scale", metavar = "numeric"),
+    make_option(c("--min_color"), type = "character", default = "#185295",
+                help = "Hex code for the minimum color in the heatmap", metavar = "character"),
+    make_option(c("--mid_color"), type = "character", default = "white",
+                help = "Hex code for the middle color in the heatmap", metavar = "character"),
+    make_option(c("--max_color"), type = "character", default = "#c41f1f",
+                help = "Hex code for the maximum color in the heatmap", metavar = "character")
+
 )
 
 # Parse the command-line options
@@ -42,21 +63,65 @@ data <- read.csv(opt$data, header = TRUE, row.names = 1)
 data_matrix <- as.matrix(data)
 
 # Define custom color function
-col_fun <- colorRamp2(c(-2.0, -0.3, 0.3, 2.0), c("blue", "white", "white", "red"))
+# blue to white to red
+# col_fun <- colorRamp2(c(-2.0, -0.3, 0.3, 2.0), c("#185295", "white", "white", "#c41f1f"))
+col_fun <- colorRamp2(c(opt$min, 0, opt$max), c(opt$min_color, opt$mid_color, opt$max_color))
+
+h = 10 # inches
+w = 10 # inches
+
+column_count = ncol(data_matrix)
+row_count = nrow(data_matrix)
+data_aspect_ratio = column_count / row_count
+desired_aspect_ratio = w / h
+scaler = desired_aspect_ratio / data_aspect_ratio
+data_w = w * 0.8
+data_h = h * 0.8
+
+# if scaler < 1 (i.e., there are more columns than rows), scale the height
+if (scaler < 1) {
+    data_h = data_h * scaler
+} else {
+ # else scale the width
+    data_w = data_w / scaler
+}
 
 # TODO: get SVG, PNG, PDF, etc.
-png(filename = "/mnt/data/heatmap.png", width = 3.25 * 300, height = 3.25 * 300, res = 300)
+png(filename = "/mnt/data/heatmap.png", width = w * 300, height = h * 300, res = 300)
 
 # Plot heatmap without clustering
 Heatmap(data_matrix,
-        name = "Expression",
+        name = "L2FC",
         col = col_fun,
-        cluster_rows = FALSE,
-        cluster_columns = FALSE,
-        row_names_side = "left",
-        column_names_side = "top")
+        rect_gp = gpar(col = "white", lwd = 1), # white border around each cell
+        cluster_rows = TRUE,
+        cluster_columns = TRUE,
+        clustering_method_rows = "ward.D2",
+        clustering_method_columns = "ward.D2",
+        clustering_distance_rows = "euclidean",
+        clustering_distance_columns = "euclidean",
+        row_names_side = "right",
+        column_names_side = "bottom",
+        width = unit(data_w, "inches"),
+        height = unit(data_h, "inches"),
+        # font size for row names
+        row_names_gp = gpar(fontsize = 8),
+        # font size for column names
+        column_names_gp = gpar(fontsize = 8)
+    )
 
 # you can use sigclust2 to get statistical significance of clusters in a clustermap. TODO.
 
 # Close the device to save the file
 dev.off()
+
+
+# current_datetime <- Sys.time()
+
+# output_text <- paste("A heatmap of the data was generated with ComplexHeatmap with the clustering 
+#     method set to 'ward.D2' and the distance metric set to 'euclidean'. The heatmap was saved as a 
+#     PNG file named 'heatmap.png'. The input data file was named '", opt$data, "'.")
+
+# # create output folder from the current datetime
+# output_folder <- format(current_datetime, "%Y-%m-%d_%H-%M-%S")
+# dir.create(file.path("/mnt/data", output_folder))
