@@ -58,6 +58,10 @@ set.seed(42)
 # Read the data from the CSV file
 data <- read.csv(opt$data, header = TRUE, row.names = 1)
 
+# print the first few lines
+print("HEATMAP - data matrix:")
+print(head(data))
+
 # Convert data frame to matrix
 data_matrix <- as.matrix(data)
 

@@ -26,7 +26,7 @@ if (is.null(opt$data)) {
 data <- read.csv(opt$data, header = TRUE)
 
 # print the first few lines
-print("Read in this data matrix:")
+print("VOLCANO - data matrix:")
 print(head(data))
 
 # Check for required columns
