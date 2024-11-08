@@ -6,28 +6,27 @@ suppressPackageStartupMessages(library("ggpubr"))
 suppressPackageStartupMessages(library("ComplexHeatmap"))
 suppressPackageStartupMessages(library("circlize"))
 
-# get the .csv from optparse
 # Define the command-line options
-# 1. data file (must be a CSV file for now)
-# 2. output file type (e.g., SVG, PNG, PDF, etc.) - TODO
-# 3. max - default 2.0
-# 4. min - default -2.0
-# 5. min_color - hex code for min color - default #185295
-# 6. mid_color - hex code for mid color - default white
-# 7. max_color - hex code for max color - default #c41f1f
 option_list <- list(
     make_option(c("--data"), type = "character", default = NULL,
                 help = "Path to the data CSV file", metavar = "character"),
-    make_option(c("--max"), type = "numeric", default = 2.0,
-                help = "Maximum value for the heatmap color scale", metavar = "numeric"),
-    make_option(c("--min"), type = "numeric", default = -2.0,
+    
+    make_option(c("--min"), type = "numeric", default = -1.0,
                 help = "Minimum value for the heatmap color scale", metavar = "numeric"),
+    make_option(c("--mid"), type = "numeric", default = 0.0,
+                help = "Middle value for the heatmap color scale", metavar = "numeric"),
+    make_option(c("--max"), type = "numeric", default = 1.0,
+                help = "Maximum value for the heatmap color scale", metavar = "numeric"),
     make_option(c("--min_color"), type = "character", default = "#185295",
                 help = "Hex code for the minimum color in the heatmap", metavar = "character"),
     make_option(c("--mid_color"), type = "character", default = "white",
                 help = "Hex code for the middle color in the heatmap", metavar = "character"),
     make_option(c("--max_color"), type = "character", default = "#c41f1f",
-                help = "Hex code for the maximum color in the heatmap", metavar = "character")
+                help = "Hex code for the maximum color in the heatmap", metavar = "character"),
+    make_option(c("--cluster"), type = "logical", default = TRUE,
+                help = "Whether to cluster the rows and columns of the heatmap", metavar = "logical"),
+    make_option(c("--aspect_ratio"), type = "numeric", default = NULL,
+                help = "Aspect ratio for the heatmap plot cells (w/h)", metavar = "numeric")
 
 )
 
@@ -56,16 +55,14 @@ check_csv_file(opt$data, "data")
 # Set the random seed for reproducibility
 set.seed(42)
 
-# Load the data for the heatmap. header = sample names, row.names = gene names
+# Read the data from the CSV file
 data <- read.csv(opt$data, header = TRUE, row.names = 1)
 
 # Convert data frame to matrix
 data_matrix <- as.matrix(data)
 
 # Define custom color function
-# blue to white to red
-# col_fun <- colorRamp2(c(-2.0, -0.3, 0.3, 2.0), c("#185295", "white", "white", "#c41f1f"))
-col_fun <- colorRamp2(c(opt$min, 0, opt$max), c(opt$min_color, opt$mid_color, opt$max_color))
+col_fun <- colorRamp2(c(opt$min, opt$mid, opt$max), c(opt$min_color, opt$mid_color, opt$max_color))
 
 h = 10 # inches
 w = 10 # inches
@@ -73,10 +70,18 @@ w = 10 # inches
 column_count = ncol(data_matrix)
 row_count = nrow(data_matrix)
 data_aspect_ratio = column_count / row_count
-desired_aspect_ratio = w / h
+
+
+# if aspect_ratio is provided, use it to calculate the width and height
+if (!is.null(opt$aspect_ratio)) {
+  desired_aspect_ratio = opt$aspect_ratio
+} else {
+  desired_aspect_ratio = data_aspect_ratio
+}
+
 scaler = desired_aspect_ratio / data_aspect_ratio
-data_w = w * 0.8
-data_h = h * 0.8
+data_w = w * 0.7
+data_h = h * 0.7
 
 # if scaler < 1 (i.e., there are more columns than rows), scale the height
 if (scaler < 1) {
@@ -94,8 +99,8 @@ Heatmap(data_matrix,
         name = "L2FC",
         col = col_fun,
         rect_gp = gpar(col = "white", lwd = 1), # white border around each cell
-        cluster_rows = TRUE,
-        cluster_columns = TRUE,
+        cluster_rows = opt$cluster,
+        cluster_columns = opt$cluster,
         clustering_method_rows = "ward.D2",
         clustering_method_columns = "ward.D2",
         clustering_distance_rows = "euclidean",
@@ -105,9 +110,10 @@ Heatmap(data_matrix,
         width = unit(data_w, "inches"),
         height = unit(data_h, "inches"),
         # font size for row names
-        row_names_gp = gpar(fontsize = 8),
+        row_names_gp = gpar(fontsize = 6),
         # font size for column names
-        column_names_gp = gpar(fontsize = 8)
+        column_names_gp = gpar(fontsize = 8),
+        # show_row_names = FALSE
     )
 
 # you can use sigclust2 to get statistical significance of clusters in a clustermap. TODO.
@@ -115,12 +121,14 @@ Heatmap(data_matrix,
 # Close the device to save the file
 dev.off()
 
-
+complexHeatmapVersion <- packageVersion("ComplexHeatmap")
 # current_datetime <- Sys.time()
 
-# output_text <- paste("A heatmap of the data was generated with ComplexHeatmap with the clustering 
-#     method set to 'ward.D2' and the distance metric set to 'euclidean'. The heatmap was saved as a 
-#     PNG file named 'heatmap.png'. The input data file was named '", opt$data, "'.")
+output_text <- paste("Heatmaps were generated with the ComplexHeatmap R package version", complexHeatmapVersion, "with the clustering 
+    method set to 'ward.D2' and the distance metric set to 'euclidean'. Heatmap bounds were set to [", opt$min, ",", opt$max, "].")
+
+# write output_text to a file
+write(output_text, file = "/mnt/data/README_Heatmap.txt")
 
 # # create output folder from the current datetime
 # output_folder <- format(current_datetime, "%Y-%m-%d_%H-%M-%S")

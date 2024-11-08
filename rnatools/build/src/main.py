@@ -17,17 +17,22 @@ def main():
     # TODO: do a dry run for the input fastqs to make sure everything is good?
     # in general probably should have more error checking, i.e. make sure inputs are paired end, etc.
 
+    # TODO: do a 'conda list' and write to a README file in the output directory
+    # need to include flags
+
+    # TODO: output genome version as well
+
     # run fastqc on input fastqs
-    fastqc1_dir = os.path.join(output_dir, '001_fastqc')
-    _run_fastqc(fastq_dir, fastqc1_dir)
+    # fastqc1_dir = os.path.join(output_dir, '001_fastqc')
+    # _run_fastqc(fastq_dir, fastqc1_dir)
 
     # trim input fastqs
     fastp_dir = os.path.join(output_dir, '002_fastq_trimmed')
     _trim_fastqs(fastq_dir, fastp_dir)
 
     # run fastqc on trimmed fastqs
-    fastqc2_dir = os.path.join(output_dir, '003_fastqc')
-    _run_fastqc(fastp_dir, fastqc2_dir)
+    # fastqc2_dir = os.path.join(output_dir, '003_fastqc')
+    # _run_fastqc(fastp_dir, fastqc2_dir)
 
     # run rsem on trimmed fastqs
     rsem_dir = os.path.join(output_dir, '004_rsem')
