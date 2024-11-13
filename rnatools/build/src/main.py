@@ -39,7 +39,7 @@ def main():
 
     # get counts matrix from RSEM output
     counts_dir = os.path.join(output_dir, '003_count_matrix')
-    _get_counts_csv(rsem_dir, counts_dir)
+    _write_counts_csv(rsem_dir, counts_dir)
 
     # TODO: make contrasts and such for DESeq2?
 
@@ -143,13 +143,13 @@ def _summarize_fastp_reports(fastp_dir: str, output_dir: str, rsem_dir: str = ""
             before_filtering_bar_count = int(counts['total_reads_before_filtering'] / 2000000)
             after_filtering_bar_count = int(counts['total_reads_after_filtering'] / 2000000)
 
-            before_bar = "#" * before_filtering_bar_count
-            after_bar = "#" * after_filtering_bar_count
+            before_bar = "█" * before_filtering_bar_count
+            after_bar = "█" * after_filtering_bar_count
 
-            # put a , every 10 #'s
+            # put a space every 10 █'s
             # i.e.,
-            # ########## ########## ###
-            # ########## ########## #
+            # ██████████ ██████████ ███
+            # ██████████ ██████████ █
             before_bar = ' '.join([before_bar[i:i+10] for i in range(0, len(before_bar), 10)])
             after_bar = ' '.join([after_bar[i:i+10] for i in range(0, len(after_bar), 10)])
 
@@ -158,7 +158,7 @@ def _summarize_fastp_reports(fastp_dir: str, output_dir: str, rsem_dir: str = ""
 
             if 'aligned_reads' in counts:
                 aligned_bar_count = int(counts['aligned_reads'] / 2000000)
-                aligned_bar = "#" * aligned_bar_count
+                aligned_bar = "█" * aligned_bar_count
                 aligned_bar = ' '.join([aligned_bar[i:i+10] for i in range(0, len(aligned_bar), 10)])
                 f.write("Bar chart of reads aligned:          ---> " + aligned_bar + "\n")
 
@@ -188,7 +188,7 @@ def _run_rsem(input_dir: str, output_dir: str, rsem_reference: str) -> None:
     # probably not necessary, but still.
     os.chdir(original_wd)
 
-def _get_counts_csv(rsem_dir: str, output_dir: str) -> str:
+def _write_counts_csv(rsem_dir: str, output_dir: str) -> str:
     os.makedirs(output_dir)
     # build the counts.csv file from the output in the RSEM directory
     os.system(f'Rscript /src/tximport.R --rsem_dir {rsem_dir} --output_dir {output_dir}')
