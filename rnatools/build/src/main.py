@@ -1,5 +1,6 @@
 import os
 import argparse
+import json
 from datetime import datetime
 
 parser = argparse.ArgumentParser(description='RNA-Seq pipeline')
@@ -22,24 +23,19 @@ def main():
 
     # TODO: output genome version as well
 
-    # run fastqc on input fastqs
-    # fastqc1_dir = os.path.join(output_dir, '001_fastqc')
-    # _run_fastqc(fastq_dir, fastqc1_dir)
-
     # trim input fastqs
-    fastp_dir = os.path.join(output_dir, '002_fastq_trimmed')
+    fastp_dir = os.path.join(output_dir, '001_fastq_trimmed')
     _trim_fastqs(fastq_dir, fastp_dir)
 
-    # run fastqc on trimmed fastqs
-    # fastqc2_dir = os.path.join(output_dir, '003_fastqc')
-    # _run_fastqc(fastp_dir, fastqc2_dir)
+    # summarize fastp reports
+    _summarize_fastp_reports(fastp_dir, fastp_dir)
 
     # run rsem on trimmed fastqs
-    rsem_dir = os.path.join(output_dir, '004_rsem')
+    rsem_dir = os.path.join(output_dir, '002_rsem')
     _run_rsem(fastp_dir, rsem_dir, rsem_reference)
 
     # get counts matrix from RSEM output
-    counts_dir = os.path.join(output_dir, '005_count_matrix')
+    counts_dir = os.path.join(output_dir, '003_count_matrix')
     _get_counts_csv(rsem_dir, counts_dir)
 
     # TODO: make contrasts and such for DESeq2?
@@ -69,12 +65,67 @@ def _trim_fastqs(input_dir: str, output_dir: str) -> None:
         fastq1_output_path = os.path.join(output_dir, fastq1)
         fastq2_output_path = os.path.join(output_dir, fastq2)
         html_path = os.path.join(output_dir, html)
+        json_path = os.path.join(output_dir, html.replace('.html', '.json'))
 
         # run fastp
-        os.system(f'fastp --in1 {fastq1_path} --in2 {fastq2_path} --out1 {fastq1_output_path} --out2 {fastq2_output_path} -h {html_path}')
+        os.system(f'fastp --in1 {fastq1_path} --in2 {fastq2_path} --out1 {fastq1_output_path} --out2 {fastq2_output_path} -h {html_path} -j {json_path}')
     
     # zip up the .html files for download
     # os.system(f'zip -r {output_dir}/__fastp_html_reports.zip {output_dir}/*.html')
+
+def _summarize_fastp_reports(fastp_dir: str, output_dir: str) -> None:
+    os.makedirs(output_dir, exist_ok=True)
+    fastp_reports = [f for f in os.listdir(fastp_dir) if f.endswith('.json')]
+
+    read_counts_per_sample = dict()
+
+    for report in fastp_reports:
+        report_path = os.path.join(fastp_dir, report)
+
+        # open the report and get the before/after filtering read counts
+        with open(report_path, 'r') as f:
+            report_data = json.load(f)
+            total_reads_before = float(report_data['summary']['before_filtering']['total_reads'])
+            total_reads_after = float(report_data['summary']['after_filtering']['total_reads'])
+            low_quality_reads = float(report_data['filtering_result']['low_quality_reads'])
+            
+            # sample name is just the file name without the .json extension
+            sample_name = report.replace('.json', '')
+            read_counts_per_sample[sample_name] = {
+                'total_reads_before_filtering': total_reads_before,
+                'total_reads_after_filtering': total_reads_after,
+                'low_quality_reads': low_quality_reads
+            }
+
+    # write the summary to a .txt file
+    summary_path = os.path.join(output_dir, '__fastp_summary.txt')
+
+    with open(summary_path, 'w') as f:
+        for sample, counts in read_counts_per_sample.items():
+            f.write("Sample: " + sample + "\n")
+            f.write("Total reads before filtering: " + str(counts['total_reads_before_filtering']) + "\n")
+            f.write("Total reads after filtering: " + str(counts['total_reads_after_filtering']) + "\n")
+            f.write("Low quality reads: " + str(counts['low_quality_reads']) + "\n")
+            f.write("Percent of reads kept: " + str(counts['total_reads_after_filtering'] / counts['total_reads_before_filtering']) + "\n")
+
+            # add a bar chart of the before/after filtering read counts
+            before_filtering_bar_count = int(counts['total_reads_before_filtering'] / 2000000)
+            after_filtering_bar_count = int(counts['total_reads_after_filtering'] / 2000000)
+
+            before_bar = "#" * before_filtering_bar_count
+            after_bar = "#" * after_filtering_bar_count
+
+            # put a , every 10 #'s
+            # i.e.,
+            # ########## ########## ###
+            # ########## ########## #
+            before_bar = ' '.join([before_bar[i:i+10] for i in range(0, len(before_bar), 10)])
+            after_bar = ' '.join([after_bar[i:i+10] for i in range(0, len(after_bar), 10)])
+
+            f.write("Bar chart of reads before filtering: ---> " + before_bar + "\n")
+            f.write("Bar chart of reads after filtering:  ---> " + after_bar + "\n")
+
+            f.write("\n\n")
 
 def _run_rsem(input_dir: str, output_dir: str, rsem_reference: str) -> None:
     os.makedirs(output_dir)
