@@ -5,14 +5,14 @@ from datetime import datetime
 
 parser = argparse.ArgumentParser(description='RNA-Seq pipeline')
 parser.add_argument('-i', '--fastq_dir', type=str, help='Directory containing input fastq files', required=True)
-parser.add_argument('-r', '--rsem_reference_dir', type=str, help='Path to RSEM reference', required=True)
+parser.add_argument('-r', '--reference_dir', type=str, help='Directory containing the .gtf and .fa genome reference files', required=True)
 parser.add_argument('-o', '--output_dir', type=str, help='Output directory', required=True)
 args = parser.parse_args()
 
 def main():
     fastq_dir = args.fastq_dir
     output_dir = args.output_dir
-    rsem_reference = args.rsem_reference_dir
+    reference_dir = args.reference_dir
     output_dir = _make_output_dir(output_dir)
 
     # TODO: do a dry run for the input fastqs to make sure everything is good?
@@ -32,7 +32,7 @@ def main():
 
     # run rsem on trimmed fastqs
     rsem_dir = os.path.join(output_dir, '002_rsem')
-    _run_rsem(fastp_dir, rsem_dir, rsem_reference)
+    _run_rsem(fastp_dir, rsem_dir, reference_dir)
 
     # summarize fastp reports again, this time with RSEM counts
     _summarize_fastp_reports(fastp_dir, output_dir, rsem_dir)
@@ -44,19 +44,11 @@ def main():
     # TODO: make contrasts and such for DESeq2?
 
 
-def _run_fastqc(input_dir: str, output_dir: str) -> None:
-    os.makedirs(output_dir)
-    fastqs = [f for f in os.listdir(input_dir) if f.endswith('.fastq')]
-    for fastq in fastqs:
-        # get input paths
-        fastq_path = os.path.join(input_dir, fastq)
-
-        # run fastqc
-        os.system(f'fastqc --outdir={output_dir} {fastq_path}')
-
 def _trim_fastqs(input_dir: str, output_dir: str) -> None:
     os.makedirs(output_dir)
     fastqs = [f for f in os.listdir(input_dir) if '_R1_' in f and f.endswith('.fastq')]
+    fastqs.sort()
+
     for fastq1 in fastqs:
         # get input paths
         fastq2 = fastq1.replace('_R1_', '_R2_')
@@ -164,7 +156,10 @@ def _summarize_fastp_reports(fastp_dir: str, output_dir: str, rsem_dir: str = ""
 
             f.write("\n\n")
 
-def _run_rsem(input_dir: str, output_dir: str, rsem_reference: str) -> None:
+def _run_rsem(input_dir: str, output_dir: str, genome_dir: str) -> None:
+    # build star/rsem reference if it doesn't exist
+    rsem_reference = _build_rsem_reference(genome_dir)
+
     os.makedirs(output_dir)
 
     # change working directory... fixes super annoying rsem bug.
@@ -176,6 +171,8 @@ def _run_rsem(input_dir: str, output_dir: str, rsem_reference: str) -> None:
     os.chdir(output_dir)
 
     fastqs = [f for f in os.listdir(input_dir) if '_R1_' in f and f.endswith('.fastq')]
+    fastqs.sort()
+
     rsem_temporary_dir = os.path.join(output_dir, 'rsem_temp')
     for fastq1 in fastqs:
         fastq2 = fastq1.replace('_R1_', '_R2_')
@@ -187,6 +184,40 @@ def _run_rsem(input_dir: str, output_dir: str, rsem_reference: str) -> None:
     # change working directory back to original working directory.
     # probably not necessary, but still.
     os.chdir(original_wd)
+
+def _build_rsem_reference(genome_dir: str) -> str:
+    if not os.path.isdir(genome_dir):
+        raise Exception("Genome directory does not exist")
+
+    gtf_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".gtf")]
+    fa_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".fa")]
+
+    if len(gtf_files) != 1 or len(fa_files) != 1:
+        raise Exception("The genome dir must have exactly one .gtf file and exactly one .fa file")
+
+    star_reference_dir = os.path.join(genome_dir, "star_reference")
+    star_reference_files = os.path.join(star_reference_dir, "star_reference")
+
+    if not os.path.isdir(star_reference_dir):
+        os.makedirs(star_reference_dir)
+        os.system(f'rsem-prepare-reference --star -p 20 --gtf {gtf_files[0]} {fa_files[0]} {star_reference_files}')
+    else:
+        # TODO: check if the reference was built successfully by reading the Log.out file
+        # if not, delete the directory and rebuild the reference
+
+        # # read 'Log.out' file to see if the reference was built successfully
+        # log_file = os.path.join(star_reference_dir, "Log.out")
+        # with open(log_file, 'r') as f:
+        #     lines = f.readlines()
+        
+        # # check for 'DONE: Genome generation, EXITING' in the log file
+        # if not any('DONE: Genome generation, EXITING' in line for line in lines):
+        #     # if the log file doesn't contain the 'DONE' message, then the reference wasn't built successfully
+        #     raise Exception("Error building STAR reference")
+
+        print("Found STAR reference directory. Skipping building reference.")
+    
+    return star_reference_files
 
 def _write_counts_csv(rsem_dir: str, output_dir: str) -> str:
     os.makedirs(output_dir)
