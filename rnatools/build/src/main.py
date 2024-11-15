@@ -78,6 +78,9 @@ def _check_inputs(fastq_dir: str, reference_dir: str, output_dir: str) -> None:
     # check to see if the output dir exists
     if not os.path.isdir(output_dir):
         raise Exception("Output directory does not exist")
+    
+    # build reference
+    _build_rsem_reference(reference_dir)
 
 def _trim_fastqs(input_dir: str, output_dir: str) -> None:
     os.makedirs(output_dir)
@@ -147,6 +150,7 @@ def _summarize_fastp_reports(fastp_dir: str, output_dir: str, rsem_dir: str = ""
     else:
         summary_path = os.path.join(output_dir, '__fastp_summary.txt')
 
+    progress_char = '█'
     with open(summary_path, 'w') as f:
         for sample, counts in read_counts_per_sample.items():
             f.write("Sample: " + sample + "\n")
@@ -170,13 +174,12 @@ def _summarize_fastp_reports(fastp_dir: str, output_dir: str, rsem_dir: str = ""
             before_filtering_bar_count = int(counts['total_reads_before_filtering'] / 2000000)
             after_filtering_bar_count = int(counts['total_reads_after_filtering'] / 2000000)
 
-            before_bar = "█" * before_filtering_bar_count
-            after_bar = "█" * after_filtering_bar_count
+            before_bar = progress_char * before_filtering_bar_count
+            after_bar = progress_char * after_filtering_bar_count
 
-            # put a space every 10 █'s
+            # put a space every 10 ▉'s
             # i.e.,
             # ██████████ ██████████ ███
-            # ██████████ ██████████ █
             before_bar = ' '.join([before_bar[i:i+10] for i in range(0, len(before_bar), 10)])
             after_bar = ' '.join([after_bar[i:i+10] for i in range(0, len(after_bar), 10)])
 
@@ -185,7 +188,7 @@ def _summarize_fastp_reports(fastp_dir: str, output_dir: str, rsem_dir: str = ""
 
             if 'aligned_reads' in counts:
                 aligned_bar_count = int(counts['aligned_reads'] / 2000000)
-                aligned_bar = "█" * aligned_bar_count
+                aligned_bar = progress_char * aligned_bar_count
                 aligned_bar = ' '.join([aligned_bar[i:i+10] for i in range(0, len(aligned_bar), 10)])
                 f.write("Bar chart of reads aligned:          ---> " + aligned_bar + "\n")
 
@@ -221,14 +224,8 @@ def _run_rsem(input_dir: str, output_dir: str, genome_dir: str) -> None:
     os.chdir(original_wd)
 
 def _build_rsem_reference(genome_dir: str) -> str:
-    if not os.path.isdir(genome_dir):
-        raise Exception("Genome directory does not exist")
-
     gtf_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".gtf")]
     fa_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".fa")]
-
-    if len(gtf_files) != 1 or len(fa_files) != 1:
-        raise Exception("The genome dir must have exactly one .gtf file and exactly one .fa file")
 
     star_reference_dir = os.path.join(genome_dir, "star_reference")
     star_reference_files = os.path.join(star_reference_dir, "star_reference")
