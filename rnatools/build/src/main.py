@@ -79,6 +79,8 @@ def _check_inputs(fastq_dir: str, reference_dir: str, output_dir: str) -> None:
     if not os.path.isdir(output_dir):
         raise Exception("Output directory does not exist")
     
+    print("Inputs look OK")
+
     # build reference
     _build_rsem_reference(reference_dir)
 
@@ -231,6 +233,7 @@ def _build_rsem_reference(genome_dir: str) -> str:
     star_reference_files = os.path.join(star_reference_dir, "star_reference")
 
     if not os.path.isdir(star_reference_dir):
+        print("Building STAR reference")
         os.makedirs(star_reference_dir)
         os.system(f'rsem-prepare-reference --star -p 20 --gtf {gtf_files[0]} {fa_files[0]} {star_reference_files}')
     else:
