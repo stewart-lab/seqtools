@@ -13,14 +13,14 @@ def main():
     fastq_dir = args.fastq_dir
     output_dir = args.output_dir
     reference_dir = args.reference_dir
-    output_dir = _make_output_dir(output_dir)
 
     # TODO: do a dry run for the input fastqs to make sure everything is good?
-    # in general probably should have more error checking, i.e. make sure inputs are paired end, etc.
+    _check_inputs(fastq_dir, reference_dir, output_dir)
+
+    output_dir = _make_output_dir(output_dir)
 
     # TODO: do a 'conda list' and write to a README file in the output directory
     # need to include flags
-
     # TODO: output genome version as well
 
     # trim input fastqs
@@ -43,6 +43,41 @@ def main():
 
     # TODO: make contrasts and such for DESeq2?
 
+def _check_inputs(fastq_dir: str, reference_dir: str, output_dir: str) -> None:
+    if not os.path.isdir(fastq_dir):
+        raise Exception("Fastq directory does not exist")
+    
+    if not os.path.isdir(reference_dir):
+        raise Exception("Reference directory does not exist")
+    
+    # check to see if the fastq dir contains any fastq files
+    fastq_files = [f for f in os.listdir(fastq_dir) if f.endswith('.fastq')]
+    if not fastq_files:
+        raise Exception("No .fastq files found in the fastq directory")
+    
+    # all fastq files should be paired end
+    r1_fastqs = [f for f in fastq_files if '_R1_' in f]
+    r2_fastqs = [f for f in fastq_files if '_R2_' in f]
+    if not r1_fastqs:
+        raise Exception("No _R1_ fastq files found in the fastq directory")
+    if not r2_fastqs:
+        raise Exception("No _R2_ fastq files found in the fastq directory")
+    if len(r1_fastqs) != len(r2_fastqs):
+        raise Exception("Unequal number of _R1_ and _R2_ fastq files found in the fastq directory")
+    for r1 in r1_fastqs:
+        r2 = r1.replace('_R1_', '_R2_')
+        if r2 not in r2_fastqs:
+            raise Exception(f"Paired end _R2_ fastq file not found for {r1}")
+    
+    # check to see if the reference dir contains a .gtf and .fa file
+    gtf_files = [f for f in os.listdir(reference_dir) if f.endswith('.gtf')]
+    fa_files = [f for f in os.listdir(reference_dir) if f.endswith('.fa')]
+    if len(gtf_files) != 1 or len(fa_files) != 1:
+        raise Exception("The reference dir must have exactly one .gtf file and exactly one .fa file")
+    
+    # check to see if the output dir exists
+    if not os.path.isdir(output_dir):
+        raise Exception("Output directory does not exist")
 
 def _trim_fastqs(input_dir: str, output_dir: str) -> None:
     os.makedirs(output_dir)
