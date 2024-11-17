@@ -3,12 +3,14 @@ import argparse
 import json
 from datetime import datetime
 
+# TODO: add a param to specify the number of threads to use for each tool
+# TODO: add an optional param to specify input .fastq file names and which are R1 and R2
 # TODO: make contrasts and such for DESeq2?
 
 parser = argparse.ArgumentParser(description='GUPPy - Paired-end bulk RNA-Seq pipeline')
 parser.add_argument('-i', '--fastq_dir', type=str, help='Directory containing input .fastq files.', required=True)
 parser.add_argument('-r', '--reference_genome_dir', type=str, help='Directory containing the .gtf and .fa genome reference files.', required=True)
-parser.add_argument('-o', '--output_dir', type=str, help='Output directory. This directory must exist.', required=True)
+parser.add_argument('-o', '--output_dir', type=str, help='Output directory. This directory must exist. A timestamped output directory will be created in this directory.', required=True)
 parser.add_argument('--resume', action='store_true', help='Resume a previous run of this pipeline. All args must be identical to resume successfully.', required=False)
 args = parser.parse_args()
 
@@ -155,39 +157,68 @@ def _run_fastp(fastq_dir: str, fastp_dir: str, timestamped_outdir: str) -> None:
     # os.system(f'zip -r {output_dir}/__fastp_html_reports.zip {output_dir}/*.html')
 
 ##############################################################################
-## Builds the STAR reference from .gtf + .fa files
+## Builds the STAR reference from .gtf and .fa files
 ##############################################################################
 def _run_rsem_prepare_reference(genome_dir: str, timestamped_outdir: str) -> str:
     gtf_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".gtf")]
     fa_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".fa")]
 
+    existing_dirs = [f for f in os.listdir(genome_dir) if os.path.isdir(os.path.join(genome_dir, f))]
+
+    # check if the STAR reference has already been built
+    for subdir in existing_dirs:
+        # get log file and check if the reference was built successfully
+        log_file = os.path.join(genome_dir, subdir, "Log.out")
+        if not os.path.isfile(log_file):
+            continue
+
+        with open(log_file, 'r') as f:
+            log_lines = f.readlines()
+
+        # check if the reference was built with the same .gtf and .fa files as the current run
+        gtf_file_name = [os.path.basename(f) for f in gtf_files][0]
+        fa_file_name = [os.path.basename(f) for f in fa_files][0]
+
+        if not any(gtf_file_name in line for line in log_lines):
+            print("Found a STAR reference directory, but it was not built with the same .gtf file.")
+            continue
+
+        if not any(fa_file_name in line for line in log_lines):
+            print("Found a STAR reference directory, but it was not built with the same .fa file.")
+            continue
+
+        # check if the reference was built successfully
+        if not any('DONE: Genome generation, EXITING' in line for line in log_lines):
+            # if the log file doesn't contain the 'DONE' message, then the reference wasn't built successfully.
+            # we need to delete this directory and rebuild the reference.
+            print("Found a STAR reference directory with this .gtf and .fa, but it was not built successfully. Removing the directory.")
+            os.system(f'rm -rf {os.path.join(genome_dir, subdir)}')
+            continue
+
+        # if we get to this point, there is a STAR reference directory that was built successfully.
+        # TODO: check it was built with the same params as the current run.
+
+        # get the file that ends with ".transcripts.fa"; this is the STAR reference name
+        star_ref_name = [f.replace(".transcripts.fa", "") for f in os.listdir(os.path.join(genome_dir, subdir)) if f.endswith(".transcripts.fa")]
+
+        if len(star_ref_name) != 1:
+            print("Found a STAR reference directory, but couldn't find the .transcripts.fa file.")
+            continue
+
+        star_reference_files = os.path.join(genome_dir, subdir, star_ref_name[0])
+        print("Found STAR reference directory. Skipping building reference.")
+        _write_checkpoint("REFERENCE FOUND SUCCESSFULLY", timestamped_outdir)
+        return star_reference_files
+
+    # if we get to this point, we need to build the reference
     star_reference_dir = os.path.join(genome_dir, "star_reference")
     star_reference_files = os.path.join(star_reference_dir, "star_reference")
 
-    if not os.path.isdir(star_reference_dir):
-        print("Building STAR reference")
-        _write_checkpoint("BUILDING REFERENCE", timestamped_outdir)
-        os.makedirs(star_reference_dir)
-        os.system(f'rsem-prepare-reference --star -p 20 --gtf {gtf_files[0]} {fa_files[0]} {star_reference_files}')
-        _write_checkpoint("REFERENCE BUILT", timestamped_outdir)
-    else:
-        # TODO: check if the reference was built successfully by reading the Log.out file
-        # if not, delete the directory and rebuild the reference
-
-        # # read 'Log.out' file to see if the reference was built successfully
-        # log_file = os.path.join(star_reference_dir, "Log.out")
-        # with open(log_file, 'r') as f:
-        #     lines = f.readlines()
-        
-        # # check for 'DONE: Genome generation, EXITING' in the log file
-        # if not any('DONE: Genome generation, EXITING' in line for line in lines):
-        #     # if the log file doesn't contain the 'DONE' message, then the reference wasn't built successfully
-        #     raise Exception("Error building STAR reference")
-
-        print("Found STAR reference directory. Skipping building reference.")
-        _write_checkpoint("REFERENCE ALREADY EXISTS", timestamped_outdir)
-    
-    _write_checkpoint("REFERENCE OK", timestamped_outdir)
+    print("Building STAR reference")
+    _write_checkpoint("BUILDING REFERENCE", timestamped_outdir)
+    os.makedirs(star_reference_dir, exist_ok=True)
+    os.system(f'rsem-prepare-reference --star -p 20 --gtf {gtf_files[0]} {fa_files[0]} {star_reference_files}')
+    _write_checkpoint("REFERENCE BUILT", timestamped_outdir)
     return star_reference_files
 
 ##############################################################################
@@ -308,7 +339,7 @@ def _check_resume(output_dir: str, fastq_dir: str, genome_dir: str) -> str:
     return None
 
 ##############################################################################
-## Creates a summary of the fastp reports
+## Creates a summary of the fastp reports (and optionally RSEM counts)
 ##############################################################################
 def _summarize_fastp_reports(fastp_dir: str, timestamped_outdir: str, rsem_dir: str = "") -> None:
     if rsem_dir:
@@ -349,9 +380,9 @@ def _summarize_fastp_reports(fastp_dir: str, timestamped_outdir: str, rsem_dir: 
 
     # write the summary to a .txt file
     if rsem_dir:
-        summary_path = os.path.join(timestamped_outdir, '__fastp_rsem_summary.txt')
+        summary_path = os.path.join(timestamped_outdir, '_alignment_summary.txt')
     else:
-        summary_path = os.path.join(timestamped_outdir, '__fastp_summary.txt')
+        summary_path = os.path.join(timestamped_outdir, '_filtering_summary.txt')
 
     progress_char = '█'
     with open(summary_path, 'w') as f:
