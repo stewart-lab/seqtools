@@ -10,4 +10,9 @@ RUN R -e "install.packages(c('BiocManager', 'optparse'), repos='https://cloud.r-
 # Copy the data from ./src to /src in the image
 COPY ./src /src
 
-ENTRYPOINT ["python3", "/src/main.py"]
+# Add entrypoint script
+# COPY update_user.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /src/update_user.sh
+
+# Set the entrypoint to the main.py script with unbuffered output
+ENTRYPOINT ["python3", "-u", "/src/main.py"]
