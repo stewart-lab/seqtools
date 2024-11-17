@@ -163,13 +163,13 @@ def _run_rsem_prepare_reference(genome_dir: str, timestamped_outdir: str) -> str
     gtf_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".gtf")]
     fa_files = [os.path.join(genome_dir, file) for file in os.listdir(genome_dir) if file.endswith(".fa")]
 
-    existing_dirs = [f for f in os.listdir(genome_dir) if os.path.isdir(os.path.join(genome_dir, f))]
-
     # check if the STAR reference has already been built
-    for subdir in existing_dirs:
+    subdirs = [f for f in os.listdir(genome_dir) if os.path.isdir(os.path.join(genome_dir, f))]
+    for subdir in subdirs:
         # get log file and check if the reference was built successfully
         log_file = os.path.join(genome_dir, subdir, "Log.out")
         if not os.path.isfile(log_file):
+            # probably not a STAR reference directory if there is no Log.out file
             continue
 
         with open(log_file, 'r') as f:
@@ -189,8 +189,7 @@ def _run_rsem_prepare_reference(genome_dir: str, timestamped_outdir: str) -> str
 
         # check if the reference was built successfully
         if not any('DONE: Genome generation, EXITING' in line for line in log_lines):
-            # if the log file doesn't contain the 'DONE' message, then the reference wasn't built successfully.
-            # we need to delete this directory and rebuild the reference.
+            # delete this incomplete STAR reference directory
             print("Found a STAR reference directory with this .gtf and .fa, but it was not built successfully. Removing the directory.")
             os.system(f'rm -rf {os.path.join(genome_dir, subdir)}')
             continue
@@ -202,7 +201,7 @@ def _run_rsem_prepare_reference(genome_dir: str, timestamped_outdir: str) -> str
         star_ref_name = [f.replace(".transcripts.fa", "") for f in os.listdir(os.path.join(genome_dir, subdir)) if f.endswith(".transcripts.fa")]
 
         if len(star_ref_name) != 1:
-            print("Found a STAR reference directory, but couldn't find the .transcripts.fa file.")
+            print("Found a STAR reference directory, but couldn't find exactly one .transcripts.fa file.")
             continue
 
         star_reference_files = os.path.join(genome_dir, subdir, star_ref_name[0])
