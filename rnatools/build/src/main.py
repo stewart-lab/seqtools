@@ -266,15 +266,15 @@ def _check_resume(output_dir: str, fastq_dir: str, genome_dir: str) -> str:
     # reverse sort the folders so the most recent run is first
     folders.sort(reverse=True)
 
-    # check if any of the folders contain the 'completed.txt' file
+    # check if any of the folders contain the 'checkpoints.txt' file
     for timestamped_outdir in folders:
         print(f"Checking {timestamped_outdir}")
-        completed_file = os.path.join(output_dir, timestamped_outdir, checkpoint_file)
+        checkpoint_file_path = os.path.join(output_dir, timestamped_outdir, checkpoint_file)
         params_file_path = os.path.join(output_dir, timestamped_outdir, params_file)
         same_params = False
         is_complete = False
 
-        # check to see if the params has the same parameters as the current run
+        # check to see if the params has the same params as the current run
         current_run_params = _create_params_text(fastq_dir, genome_dir)
         if os.path.isfile(params_file_path):
             with open(params_file_path, 'r') as f:
@@ -291,11 +291,11 @@ def _check_resume(output_dir: str, fastq_dir: str, genome_dir: str) -> str:
                     same_params = False
                     break
 
-        # check to see if the completed_file has "ALL STEPS COMPLETE" in it
-        if os.path.isfile(completed_file):
-            with open(completed_file, 'r') as f:
-                completed_text = f.read()
-                if "ALL STEPS COMPLETE" in completed_text:
+        # check to see if the checkpoints.txt has "ALL STEPS COMPLETE" in it
+        if os.path.isfile(checkpoint_file_path):
+            with open(checkpoint_file_path, 'r') as f:
+                checkpoints_text = f.read()
+                if "ALL STEPS COMPLETE" in checkpoints_text:
                     is_complete = True
 
         print(f"Same params: {same_params}")
