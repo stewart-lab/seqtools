@@ -210,7 +210,8 @@ def _run_rsem_prepare_reference(genome_dir: str, timestamped_outdir: str) -> str
         return star_reference_files
 
     # if we get to this point, we need to build the reference
-    star_reference_dir = os.path.join(genome_dir, "star_reference")
+    current_datetime = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    star_reference_dir = os.path.join(genome_dir, current_datetime + "___star_reference")
     star_reference_files = os.path.join(star_reference_dir, "star_reference")
 
     print("Building STAR reference")
