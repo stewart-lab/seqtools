@@ -8,7 +8,7 @@ from datetime import datetime
 parser = argparse.ArgumentParser(description='GUPPy - Paired-end bulk RNA-Seq pipeline')
 parser.add_argument('-i', '--fastq_dir', type=str, help='Directory containing input .fastq files.', required=True)
 parser.add_argument('-r', '--reference_genome_dir', type=str, help='Directory containing the .gtf and .fa genome reference files.', required=True)
-parser.add_argument('-o', '--output_dir', type=str, help='Output directory. By default this is the .fastq directory. This directory must exist.', required=True)
+parser.add_argument('-o', '--output_dir', type=str, help='Output directory. This directory must exist.', required=True)
 parser.add_argument('--resume', action='store_true', help='Resume a previous run of this pipeline. All args must be identical to resume successfully.', required=False)
 args = parser.parse_args()
 
