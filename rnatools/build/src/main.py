@@ -8,7 +8,7 @@ from datetime import datetime
 parser = argparse.ArgumentParser(description='GUPPy - Paired-end bulk RNA-Seq pipeline')
 parser.add_argument('-i', '--fastq_dir', type=str, help='Directory containing input .fastq files.', required=True)
 parser.add_argument('-r', '--reference_genome_dir', type=str, help='Directory containing the .gtf and .fa genome reference files.', required=True)
-parser.add_argument('-o', '--output_dir', type=str, help='Output directory. By default this is the .fastq directory. This directory must exist.', required=False)
+parser.add_argument('-o', '--output_dir', type=str, help='Output directory. By default this is the .fastq directory. This directory must exist.', required=True)
 parser.add_argument('--resume', action='store_true', help='Resume a previous run of this pipeline. All args must be identical to resume successfully.', required=False)
 args = parser.parse_args()
 
@@ -24,10 +24,6 @@ def main():
     genome_dir = args.reference_genome_dir
     resume = args.resume
 
-    # set the output directory to the fastq directory if not specified
-    if not output_dir:
-        output_dir = fastq_dir
-
     # check for valid inputs before we start any processing
     _check_inputs(fastq_dir, genome_dir, output_dir)
     print("Inputs are valid!")
@@ -39,33 +35,32 @@ def main():
     else:
         existing_dir = None
 
+    # create a timestamped output directory or use the existing one if we are resuming a run
     if not existing_dir:
-        # create the timestamped output directory
         timestamped_outdir = _create_timestamped_outdir(output_dir)
         _write_checkpoint("STARTING PIPELINE", timestamped_outdir)
         _write_params(fastq_dir, genome_dir, timestamped_outdir)
     else:
-        # resume from the existing directory
-        print(f"Resuming run from {existing_dir}")
         timestamped_outdir = existing_dir
         _write_checkpoint("RESUMING PIPELINE", timestamped_outdir)
+        print(f"Resuming run from {existing_dir}")
 
     # build STAR/RSEM reference if needed
     _run_rsem_prepare_reference(genome_dir, timestamped_outdir)
 
-    # trim input fastqs
+    # trim input .fastq files using fastp
     fastp_dir = os.path.join(timestamped_outdir, '001_fastq_trimmed')
     _run_fastp(fastq_dir, fastp_dir, timestamped_outdir)
 
-    # run rsem on trimmed fastqs
+    # run rsem on trimmed .fastq files
     rsem_dir = os.path.join(timestamped_outdir, '002_rsem')
     _run_rsem_calculate_expression(fastp_dir, rsem_dir, genome_dir, timestamped_outdir)
 
-    # get counts matrix from RSEM output
+    # build count matrix from RSEM output
     counts_dir = os.path.join(timestamped_outdir, '003_count_matrix')
     _run_tximport(rsem_dir, counts_dir, timestamped_outdir)
 
-    # write all complete checkpoint
+    # all done!
     _write_checkpoint("ALL STEPS COMPLETE", timestamped_outdir)
 
 
