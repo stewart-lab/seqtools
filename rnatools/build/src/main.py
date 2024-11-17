@@ -31,19 +31,19 @@ def main():
     # check if we are resuming a previous (interrupted) run
     if resume:
         print("Looking for previous run to resume...")
-        existing_dir = _check_resume(output_dir, fastq_dir, genome_dir)
+        previous_run_dir = _check_resume(output_dir, fastq_dir, genome_dir)
     else:
-        existing_dir = None
+        previous_run_dir = None
 
     # create a timestamped output directory or use the existing one if we are resuming a run
-    if not existing_dir:
+    if not previous_run_dir:
         timestamped_outdir = _create_timestamped_outdir(output_dir)
         _write_checkpoint("STARTING PIPELINE", timestamped_outdir)
         _write_params(fastq_dir, genome_dir, timestamped_outdir)
     else:
-        timestamped_outdir = existing_dir
+        timestamped_outdir = previous_run_dir
         _write_checkpoint("RESUMING PIPELINE", timestamped_outdir)
-        print(f"Resuming run from {existing_dir}")
+        print(f"Resuming run from {previous_run_dir}")
 
     # build STAR/RSEM reference if needed
     _run_rsem_prepare_reference(genome_dir, timestamped_outdir)
