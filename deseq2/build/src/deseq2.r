@@ -131,8 +131,8 @@ for (i in 1:nrow(contrasts)) {
     # Add gene symbols to the result_df
     row.names(result_df) <- unique_gene_symbols
 
-    # add gene names
-    result_df$gene <- rownames(result_df)
+    # add gene names as the first column
+    result_df <- cbind(gene=rownames(result_df), result_df)
 
     # write individual result to file
     write.csv(result_df, file=output_file, row.names=FALSE, quote=FALSE)

@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install BiocManager and DESeq2
 RUN R -e "install.packages(c('BiocManager', 'optparse'), repos='https://cloud.r-project.org')"
-RUN R -e "BiocManager::install(c('DESeq2', 'AnnotationDbi', 'org.Hs.eg.db'))"
+RUN R -e "BiocManager::install(c('DESeq2', 'AnnotationDbi', 'org.Hs.eg.db', 'gprofiler2'))"
 
 # Copy the data from ./src to /src in the image
 COPY ./src /src
