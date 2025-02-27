@@ -88,54 +88,51 @@ dds = DESeq(dds)
 # get normalized counts
 norm_counts <- counts(dds, normalized=TRUE)
 
-# save the individual contrast results
+# Map Ensembl IDs to gene symbols for the normalized count matrix
+ensembl_genes <- rownames(norm_counts)
+gene_symbols <- mapIds(
+    org.Hs.eg.db,
+    keys = ensembl_genes,
+    column = "SYMBOL", # convert to HGNC gene symbols
+    keytype = "ENSEMBL",
+    multiVals = "first"
+)
+
+# Replace NAs with original Ensembl IDs and ensure unique gene names
+gene_symbols[is.na(gene_symbols)] <- names(gene_symbols)[is.na(gene_symbols)]
+unique_gene_symbols <- make.unique(as.character(gene_symbols))
+
+# Add gene symbols as the first column and write the normalized counts
+norm_counts <- cbind(gene = unique_gene_symbols, norm_counts)
+write.csv(norm_counts, file = file.path(opt$output_dir, "normalized_counts.csv"), row.names = FALSE, quote = FALSE)
+message("# Normalized count matrix written to:", file.path(opt$output_dir, "normalized_counts.csv"))
+
+# Save the individual contrast results
 for (i in 1:nrow(contrasts)) {
     contrast <- contrasts[i,]
-
-    # make the output file name for this contrast
-    result_name <- paste(contrast$treatment, "vs", contrast$control, sep="_")
+    result_name <- paste(contrast$treatment, "vs", contrast$control, sep = "_")
     output_file <- paste0(opt$output_dir, "/", result_name, ".csv")
-
-    # extract DESeq2 results for this contrast and convert to data frame
-    res <- results(dds, contrast=c("condition", contrast$treatment, contrast$control))
-    result_df <- as.data.frame(res)
-
-    # extract the sample names for the contrast's treatment and control groups
-    treatment_design_rows <- design[design$condition == contrast$treatment, ]
-    control_design_rows <- design[design$condition == contrast$control, ]
-
-    treatment_samples <- treatment_design_rows$sample
-    control_samples <- control_design_rows$sample
-
-    # subset normalized counts for treatment and control groups
-    normalized_treatment_counts <- norm_counts[, treatment_samples]
-    normalized_control_counts <- norm_counts[, control_samples]
-
-    # Add normalized counts for each sample in treatment and control groups to result_df
-    result_df <- cbind(result_df, normalized_treatment_counts, normalized_control_counts)
-
-    ensembl_genes <- rownames(result_df)
-
-    gene_symbols <- mapIds(org.Hs.eg.db,
-                       keys=ensembl_genes,
-                       column="SYMBOL",
-                       keytype="ENSEMBL",
-                       multiVals="first")
-
-    # Replace NAs with original Ensembl IDs
-    gene_symbols[is.na(gene_symbols)] <- names(gene_symbols)[is.na(gene_symbols)]
-
-    # Make unique row names if there are duplicates
-    unique_gene_symbols <- make.unique(as.character(gene_symbols))
-
-    # Add gene symbols to the result_df
-    row.names(result_df) <- unique_gene_symbols
-
-    # add gene names as the first column
-    result_df <- cbind(gene=rownames(result_df), result_df)
-
-    # write individual result to file
-    write.csv(result_df, file=output_file, row.names=FALSE, quote=FALSE)
     
+    # Extract DESeq2 results for this contrast
+    res <- results(dds, contrast = c("condition", contrast$treatment, contrast$control))
+    result_df <- as.data.frame(res)
+    
+    # Add gene symbols to the contrast results
+    result_df$gene <- unique_gene_symbols
+    
+    # Subset normalized counts for treatment and control groups
+    control_samples <- design[design$condition == contrast$control, "sample"]
+    treatment_samples <- design[design$condition == contrast$treatment, "sample"]
+    normalized_control_counts <- norm_counts[, control_samples, drop = FALSE]
+    normalized_treatment_counts <- norm_counts[, treatment_samples, drop = FALSE]
+    
+    # Add normalized counts for treatment and control groups to the results
+    result_df <- cbind(result_df, normalized_control_counts, normalized_treatment_counts)
+    
+    # Reorder the columns to have the gene symbol as the first column
+    result_df <- result_df[, c("gene", setdiff(names(result_df), "gene"))]
+    
+    # Write the results to a file
+    write.csv(result_df, file = output_file, row.names = FALSE, quote = FALSE)
     message(paste("# Output for contrast", result_name, "written to:", output_file))
 }
