@@ -8,11 +8,12 @@ RUN conda install -c bioconda fastqc fastp rsem star bioconductor-tximport -y
 RUN R -e "install.packages(c('BiocManager', 'optparse'), repos='https://cloud.r-project.org')"
 
 # Copy the data from ./src to /src in the image
+RUN rm -rf ./src/
 COPY ./src /src
 
 # Add entrypoint script
 # COPY update_user.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /src/update_user.sh
+#RUN chmod +x /src/update_user.sh
 
 # Set the entrypoint to the main.py script with unbuffered output
 ENTRYPOINT ["python3", "-u", "/src/main.py"]

@@ -64,17 +64,17 @@ dir.create(opt$output_dir, showWarnings = FALSE)
 
 
 # Read the design file.
-design <- read.csv(opt$design, stringsAsFactors=F)
+design <- read.csv2(opt$design, header=TRUE, stringsAsFactors=F, sep=",")
 design$condition = factor(design$condition)
 
 # Read the contrasts file.
-contrasts <- read.csv(opt$contrasts)
+contrasts <- read.csv2(opt$contrasts, header=TRUE, sep=",")
 
 # Isolate the sample names.
 sample_names <- design$sample
 
 # read the counts data
-df = read.csv(opt$counts, header=TRUE, row.names=1)
+df = read.csv2(opt$counts, header=TRUE, row.names=1, sep=",")
 
 # round the count data to integers
 countData = round(df[, sample_names])

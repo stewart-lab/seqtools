@@ -81,23 +81,26 @@ def _check_inputs(fastq_dir: str, genome_dir: str, output_dir: str) -> None:
         raise Exception("Reference directory does not exist")
     
     # check to see if the fastq dir contains any fastq files
-    fastq_files = [f for f in os.listdir(fastq_dir) if f.endswith('.fastq')]
+    fastq_files = [f for f in os.listdir(fastq_dir) if f.endswith('.fastq') or f.endswith('.fq.gz')]
     if not fastq_files:
         raise Exception("No .fastq files found in the fastq directory")
     
     # all fastq files should be paired end
-    r1_fastqs = [f for f in fastq_files if '_R1_' in f]
-    r2_fastqs = [f for f in fastq_files if '_R2_' in f]
+    r1_fastqs = [f for f in fastq_files if ('_R1_' in f) or ('1.fq.gz' in f)]
+    r2_fastqs = [f for f in fastq_files if ('_R2_' in f) or ('2.fq.gz' in f)]
     if not r1_fastqs:
-        raise Exception("No _R1_ fastq files found in the fastq directory")
+        raise Exception("No R1 fastq files found in the fastq directory")
     if not r2_fastqs:
-        raise Exception("No _R2_ fastq files found in the fastq directory")
+        raise Exception("No R2 fastq files found in the fastq directory")
     if len(r1_fastqs) != len(r2_fastqs):
-        raise Exception("Unequal number of _R1_ and _R2_ fastq files found in the fastq directory")
+        raise Exception("Unequal number of R1 and R2 fastq files found in the fastq directory")
     for r1 in r1_fastqs:
-        r2 = r1.replace('_R1_', '_R2_')
+        if '_R1_' in r1:
+            r2 = r1.replace('_R1_', '_R2_')
+        elif '1.fq.gz' in r1:
+            r2 = r1.replace('1.fq.gz', '2.fq.gz')
         if r2 not in r2_fastqs:
-            raise Exception(f"Paired end _R2_ fastq file not found for {r1}")
+            raise Exception(f"Paired end R2 fastq file not found for {r1}")
     
     # check to see if the reference dir contains one .gtf and one .fa file
     gtf_files = [f for f in os.listdir(genome_dir) if f.endswith('.gtf')]
@@ -111,7 +114,7 @@ def _check_inputs(fastq_dir: str, genome_dir: str, output_dir: str) -> None:
 def _run_fastp(fastq_dir: str, fastp_dir: str, timestamped_outdir: str) -> None:
     os.makedirs(fastp_dir, exist_ok=True)
 
-    fastqs = [f for f in os.listdir(fastq_dir) if '_R1_' in f and f.endswith('.fastq')]
+    fastqs = [f for f in os.listdir(fastq_dir) if ('_R1_' in f and f.endswith('.fastq')) or ('1.fq' in f and f.endswith('.gz'))]
     fastqs.sort()
 
     # get the list of fastq files that have already been trimmed (in case we are resuming a run)
@@ -132,16 +135,20 @@ def _run_fastp(fastq_dir: str, fastp_dir: str, timestamped_outdir: str) -> None:
             continue
 
         # get input paths
-        fastq2 = fastq1.replace('_R1_', '_R2_')
-        html = fastq1.replace('.fastq', '.html').replace('_R1_', '').replace('001.html', '.html')
+        if '_R1_' in fastq1:
+            fastq2 = fastq1.replace('_R1_', '_R2_')
+            html = fastq1.replace('.fastq', '.html').replace('_R1_', '').replace('001.html', '.html')
+        elif '1.fq.gz' in fastq1:
+            fastq2 = fastq1.replace('1.fq.gz', '2.fq.gz')
+            html = fastq1.replace('1.fq.gz', '.html')
         fastq1_path = os.path.join(fastq_dir, fastq1)
         fastq2_path = os.path.join(fastq_dir, fastq2)
 
-        # get output paths
+        # get output paths - use distinct names for reports
         fastq1_output_path = os.path.join(fastp_dir, fastq1)
         fastq2_output_path = os.path.join(fastp_dir, fastq2)
-        html_path = os.path.join(fastp_dir, html)
-        json_path = os.path.join(fastp_dir, html.replace('.html', '.json'))
+        html_path = os.path.join(fastp_dir, f"report_{html}")
+        json_path = os.path.join(fastp_dir, f"report_{html.replace('.html', '.json')}")
 
         # run fastp
         os.system(f'fastp --in1 {fastq1_path} --in2 {fastq2_path} --out1 {fastq1_output_path} --out2 {fastq2_output_path} -h {html_path} -j {json_path}')
@@ -238,7 +245,7 @@ def _run_rsem_calculate_expression(fastq_dir: str, rsem_dir: str, genome_dir: st
     original_wd = os.getcwd()
     os.chdir(rsem_dir)
 
-    fastqs = [f for f in os.listdir(fastq_dir) if '_R1_' in f and f.endswith('.fastq')]
+    fastqs = [f for f in os.listdir(fastq_dir) if ('_R1_' in f and f.endswith('.fastq')) or ('1.fq' in f and f.endswith('.gz'))]
     fastqs.sort()
 
     # get the list of fastq files that have already been aligned (in case we are resuming a run)
@@ -254,8 +261,12 @@ def _run_rsem_calculate_expression(fastq_dir: str, rsem_dir: str, genome_dir: st
 
     rsem_temporary_dir = os.path.join(rsem_dir, 'rsem_temp')
     for fastq1 in fastqs:
-        fastq2 = fastq1.replace('_R1_', '_R2_')
-        sample_name = fastq1.split('_R1_')[0]
+        if '_R1_' in fastq1:
+            fastq2 = fastq1.replace('_R1_', '_R2_')
+            sample_name = fastq1.split('_R1_')[0]
+        elif '1.fq.gz' in fastq1:
+            fastq2 = fastq1.replace('1.fq', '2.fq')
+            sample_name = fastq1.split('1.fq')[0]
 
         if fastq1 in already_aligned:
             print(f"Skipping {fastq1} because it has already been aligned")
@@ -263,7 +274,10 @@ def _run_rsem_calculate_expression(fastq_dir: str, rsem_dir: str, genome_dir: st
 
         fastq1_path = os.path.join(fastq_dir, fastq1)
         fastq2_path = os.path.join(fastq_dir, fastq2)
-        os.system(f'rsem-calculate-expression --num-threads 40 --star --temporary-folder {rsem_temporary_dir} --paired-end {fastq1_path} {fastq2_path} {rsem_reference} {sample_name}')
+        if fastq1.endswith('.gz') and fastq2.endswith('.gz'):
+            os.system(f'rsem-calculate-expression --num-threads 40 --star --star-gzipped-read-file --temporary-folder {rsem_temporary_dir} --paired-end {fastq1_path} {fastq2_path} {rsem_reference} {sample_name}')
+        else:
+            os.system(f'rsem-calculate-expression --num-threads 40 --star --temporary-folder {rsem_temporary_dir} --paired-end {fastq1_path} {fastq2_path} {rsem_reference} {sample_name}')
         _write_checkpoint(f"RSEM ALIGNED: {fastq1}", timestamped_outdir)
         _write_checkpoint(f"RSEM ALIGNED: {fastq2}", timestamped_outdir)
 

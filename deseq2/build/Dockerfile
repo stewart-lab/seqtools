@@ -12,7 +12,8 @@ RUN R -e "install.packages(c('BiocManager', 'optparse'), repos='https://cloud.r-
 RUN R -e "BiocManager::install(c('DESeq2', 'AnnotationDbi', 'org.Hs.eg.db', 'gprofiler2', 'GSVA', 'GSVABase', 'limma'))"
 
 # Copy the data from ./src to /src in the image
+RUN rm -rf ./src/
 COPY ./src /src
 
 # Set the entrypoint to run the R script using Rscript
-ENTRYPOINT ["Rscript", "/src/deseq2.r"]
+#ENTRYPOINT ["Rscript", "/src/deseq2.r"]
