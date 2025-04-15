@@ -120,8 +120,8 @@ if (!is.null(opt$filter)) {
 }
 
 # create .csv file with GSVA results
-# csv_name <- gsub(".png", ".csv", output_png)
-# write.csv(gsva_results, file = csv_name, row.names = TRUE)
+csv_name <- gsub(".png", ".csv", output_png)
+write.csv(gsva_results, file = csv_name, row.names = TRUE)
 
 # print(method, 'done. generating heatmap...')
 

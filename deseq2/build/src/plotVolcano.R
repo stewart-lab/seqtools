@@ -71,7 +71,3 @@ volcano_plot <- ggplot(data, aes(x=log2FoldChange, y=-log10(padj))) +
 # save as .png
 png_filename <- ifelse(grepl(".png$", opt$output), opt$output, paste0(opt$output, ".png"))
 ggsave(filename = png_filename, plot = volcano_plot, width = 10, height = 8, dpi = 300)
-
-# save as .svg
-svg_filename <- ifelse(grepl(".svg$", opt$output), opt$output, paste0(opt$output, ".svg"))
-ggsave(filename = svg_filename, plot = volcano_plot, width = 10, height = 8)

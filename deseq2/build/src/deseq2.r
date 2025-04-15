@@ -76,8 +76,12 @@ sample_names <- design$sample
 # read the counts data
 df = read.csv2(opt$counts, header=TRUE, row.names=1, sep=",")
 
+# convert to numeric while preserving row names
+df2 <- df
+df2[] <- lapply(df, function(x) as.numeric(as.character(x)))  # Using df2[] preserves row names
+
 # round the count data to integers
-countData = round(df[, sample_names])
+countData = round(df2[, sample_names])
 
 # create DESEq2 dataset
 dds = DESeqDataSetFromMatrix(countData=countData, colData=design, design=~condition)
@@ -90,17 +94,32 @@ norm_counts <- counts(dds, normalized=TRUE)
 
 # Map Ensembl IDs to gene symbols for the normalized count matrix
 ensembl_genes <- rownames(norm_counts)
-gene_symbols <- mapIds(
-    org.Hs.eg.db,
-    keys = ensembl_genes,
-    column = "SYMBOL", # convert to HGNC gene symbols
-    keytype = "ENSEMBL",
-    multiVals = "first"
-)
 
-# Replace NAs with original Ensembl IDs and ensure unique gene names
-gene_symbols[is.na(gene_symbols)] <- names(gene_symbols)[is.na(gene_symbols)]
-unique_gene_symbols <- make.unique(as.character(gene_symbols))
+# Add a check to ensure we have valid Ensembl IDs
+message("First few row names: ", paste(head(ensembl_genes), collapse=", "))
+
+# Filter for only valid Ensembl IDs (they typically start with ENSG for human genes)
+valid_ensembl <- grep("^ENSG", ensembl_genes, value = TRUE)
+
+if(length(valid_ensembl) == 0) {
+    warning("No valid Ensembl IDs found. Check your input data format.")
+    # If no valid IDs, just use original names
+    unique_gene_symbols <- ensembl_genes
+} else {
+    # Map only valid Ensembl IDs
+    gene_symbols <- mapIds(
+        org.Hs.eg.db,
+        keys = valid_ensembl,
+        column = "SYMBOL",
+        keytype = "ENSEMBL",
+        multiVals = "first"
+    )
+    
+    # Create a named vector for all genes, including non-Ensembl IDs
+    all_symbols <- ensembl_genes
+    all_symbols[names(gene_symbols)] <- gene_symbols
+    unique_gene_symbols <- make.unique(as.character(all_symbols))
+}
 
 # Add gene symbols as the first column and write the normalized counts
 norm_counts <- cbind(gene = unique_gene_symbols, norm_counts)

@@ -10,9 +10,9 @@ docker run \
     --rm \
     -v /w5home/bmoore/sequencing:/w5home/bmoore/sequencing \
     rmillikin/rnatools:latest \
-    --fastq_dir /w5home/bmoore/sequencing/MSpurgeon/RNAseq/01.RawData \
+    --fastq_dir /w5home/bmoore/sequencing/MSpurgeon/RNAseq/04.Reruns/01.RawData \
     --reference_genome_dir /w5home/bmoore/sequencing/Homo_sapiens_CRCh38 \
-    --output_dir /w5home/bmoore/sequencing/MSpurgeon/RNAseq/02.alignment \
+    --output_dir /w5home/bmoore/sequencing/MSpurgeon/RNAseq/04.Reruns/02.alignment \
     --resume
 
 # align to mouse genome
