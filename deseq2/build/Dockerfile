@@ -19,5 +19,5 @@ COPY ./src /src
 RUN chmod +x src/*
 # Set the entrypoint to run the R script using Rscript
 # #["Rscript", "/src/deseq2.r"]
-#ENTRYPOINT ["/bin/sh"]
+ENTRYPOINT ["Rscript", "/src/deseq2.r"]
 #CMD ["R"]

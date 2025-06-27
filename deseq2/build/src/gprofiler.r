@@ -14,20 +14,23 @@ option_list <- list(
     make_option(c("--organism"), type = "character", default = NULL,
                 help = "Organism to use for enrichment analysis, hsapiens, 
                 or gmt_ids: GO_BP: gp__httq_So1p_ckU, KEGG legacy: gp__KbhP_AZWh_sxU, 
-                KEGG medicus: gp__hHRY_iYNB_uoQ"
+                KEGG medicus: gp__hHRY_iYNB_uoQ, zebrafish: gp__HunH_2Tcy_ESg gp__ClfJ_YDuX_eRo"
                 , metavar = "character"), 
     make_option(c("--mthreshold"), type = "numeric", default = 500,
                 help = "Max members per term", metavar = "numeric"),
-    make_option(c("--padj"), type = "numeric", default = 0.05,
+    make_option(c("--padj"), type = "numeric", default = NULL,
                 help = "Minimum adj p-value for genes to use", metavar = "numeric"),
-    make_option(c("--lfc"), type = "numeric", default = 1,
+    make_option(c("--lfc"), type = "numeric", default = NULL,
                 help = "Minimum log2 fold change value for genes to use", metavar = "numeric"),
-    make_option(c("--output_dir"), type = "character", default = NULL,
+    make_option(c("--output_dir"), type = "character", default = "./",
                 help = "Path to the output directory", metavar = "character"),
     make_option(c("--output_name"), type = "character", default = "_GO_enrich",
                 help = "name appended to end of output file", metavar = "character"),
     make_option(c("--title"), type = "character", default = "GO enrichment",
-                help = "Title of GO term plot", metavar = "character")
+                help = "Title of GO term plot", metavar = "character"),
+    make_option(c("--lower"), type = "character", default = FALSE,
+                help = "convert gene names to lower case: T/F", 
+                metavar= "character")
                 )
 
 
@@ -44,17 +47,27 @@ output_file_name <- paste0(output_file_name, opt$output_name)
 
 
 # read the gene list (header col = 'genes')
-data <- read.csv(opt$genes, header = TRUE, stringsAsFactors = FALSE)
+data <- read.table(opt$genes, header = TRUE, stringsAsFactors = FALSE)
+library(tibble)
+data <- tibble::rownames_to_column(data, "gene")
 print(colnames(data))
+# convert to lower
+if (opt$lower == TRUE){
+  data$gene <- tolower(data$gene)
+}
 # filter 
-if(sign(opt$lfc)==1){
+if (is.null(opt$lfc) && is.null(opt$padj)) {
+  print("using all genes")
+} else {
+  if (sign(opt$lfc)==1) {
      data <- subset(data, log2FoldChange >= opt$lfc & padj < opt$padj)
-}else if (sign(opt$lfc)==-1) {
+  } else if (sign(opt$lfc)==-1) {
      data <- subset(data, log2FoldChange <= opt$lfc & padj < opt$padj)
+  }
 }
 
 # check for empty dataframe
-if(dim(data)[1] == 0){
+if (dim(data)[1] == 0) {
   print("No DE genes to analyze")
 } else {
 ############### enrichment analysis via gProfiler ################
