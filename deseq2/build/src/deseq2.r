@@ -141,9 +141,9 @@ if(length(valid_ensembl) == 0) {
 norm.counts <- as.data.frame(norm_counts)
 head(rownames(norm_counts))
 norm.counts <- merge(gene_symbols.df, norm.counts, by="row.names", all=TRUE)
-#print(head(norm_counts))
-#norm_counts <- data.frame(gene = unique_gene_symbols, as.data.frame(norm_counts),row.names = NULL)
-write.csv(norm_counts, file = file.path(opt$output_dir, "normalized_counts.csv"), row.names = FALSE, quote = FALSE)
+print(head(norm_counts))
+norm_counts <- data.frame(gene = unique_gene_symbols, as.data.frame(norm_counts),row.names = NULL)
+write.csv(norm_counts, file = file.path(opt$output_dir, "normalized_counts.csv"), row.names = T, quote = FALSE)
 message("# Normalized count matrix written to:", file.path(opt$output_dir, "normalized_counts.csv"))
 
 # Save the individual contrast results
@@ -158,37 +158,42 @@ for (i in 1:nrow(contrasts)) {
     result_df <- as.data.frame(res)
     print(paste0("contrast result dim: ", dim(result_df)))
     # Add gene symbols to the contrast results
-    #result_df$gene <- unique_gene_symbols[1:nrow(result_df)]
+    result_df$gene <- unique_gene_symbols[1:nrow(result_df)]
     result_df <- merge(gene_symbols.df, result_df, by="row.names", all=TRUE)  # merge by row names (by=0 or by="row.names")
     print(head(result_df))
     # Subset normalized counts for treatment and control groups
     control_samples <- design[design$condition == contrast$control, "sample"]
     treatment_samples <- design[design$condition == contrast$treatment, "sample"]
     
-    print("Debug: Structure of norm_counts")
-    print(str(norm_counts))
-    print("Debug: beginning of norm_counts")
-    print(head(norm_counts))
+    # print("Debug: Structure of norm_counts")
+    # print(str(norm_counts))
+    # # print("Debug: beginning of norm_counts")
+    # print(head(norm_counts))
     
     # Get the normalized counts matrix without the gene column
-    #norm_counts_matrix <- as.matrix(norm_counts[, !colnames(norm_counts) %in% "gene"])
-    #rownames(norm_counts_matrix) <- norm_counts[["gene"]]  # Use [[ ]] instead of $
+    norm_counts_matrix <- as.matrix(norm_counts[, !colnames(norm_counts) %in% "gene"])
+    rownames(norm_counts_matrix) <- norm_counts[["gene"]]  # Use [[ ]] instead of $
     
     # Subset the normalized counts for control and treatment samples
-    #normalized_control_counts <- norm_counts[rownames(result_df), control_samples, drop = FALSE]
-    #normalized_treatment_counts <- norm_counts[rownames(result_df), treatment_samples, drop = FALSE]
-    normalized_control_counts <- norm_counts[result_df$Row.names, control_samples, drop = FALSE]
-    normalized_treatment_counts <- norm_counts[result_df$Row.names, treatment_samples, drop = FALSE]
+    # normalized_control_counts <- norm_counts[rownames(result_df), control_samples, drop = FALSE]
+    # normalized_treatment_counts <- norm_counts[rownames(result_df), treatment_samples, drop = FALSE]
+    normalized_control_counts <- norm_counts_matrix[result_df$Row.names, control_samples, drop = FALSE]
+    normalized_treatment_counts <- norm_counts_matrix[result_df$Row.names, treatment_samples, drop = FALSE]
 
     print(paste0("norm ctrl dim: ", dim(normalized_control_counts)))
     print(paste0("norm treatment dim: ", dim(normalized_treatment_counts)))
     
+    # # Write the results to a file
+    # write.csv(result_df, file = output_file, row.names = T, quote = FALSE)
+    # message(paste("# Output for contrast", result_name, "written to:", output_file))
+
     # Add normalized counts for treatment and control groups to the results
     result_df <- cbind(result_df, normalized_control_counts, normalized_treatment_counts)
+    #result_df <- merge(result_df, normalized_control_counts, normalized_treatment_counts, by="row.names", all=TRUE) 
     print(head(result_df))
     
     # Reorder the columns to have the gene symbol as the first column
-    result_df <- result_df[, c("gene", setdiff(names(result_df), "gene"))]
+    result_df <- result_df[, c("gene.x", setdiff(names(result_df), "gene.x"))]
     
     # Write the results to a file
     write.csv(result_df, file = output_file, row.names = FALSE, quote = FALSE)

@@ -1,5 +1,6 @@
 suppressPackageStartupMessages(library("optparse"))
 suppressPackageStartupMessages(library("ggplot2"))
+library(ggrepel)
 
 # Define command-line options
 option_list <- list(
@@ -27,7 +28,7 @@ if (is.null(opt$data)) {
 # Load data
 data <- read.csv(opt$data, header = TRUE)
 rownames(data) <- data$gene
-
+print(head(data))
 # Check for required columns
 if (!all(c("padj", "log2FoldChange") %in% colnames(data))) {
     stop("The input data must contain columns named 'padj' and 'log2FoldChange'")
@@ -46,6 +47,9 @@ y_max <- max(35, max(-log10(data$padj), na.rm = TRUE))
 # add a 'significant' column to the data frame
 data$significant <- (abs(data$log2FoldChange) >= opt$l2fc_cutoff) & (data$padj <= opt$padj_cutoff)
 
+# get sig genes
+data$lab <- ifelse(data$significant, data$gene.x, NA)
+
 # Create a color palette. if the data is significant, use red, otherwise use gray
 color_palette <- ifelse(data$significant, "#c41f1f", "gray")
 
@@ -53,6 +57,7 @@ color_palette <- ifelse(data$significant, "#c41f1f", "gray")
 volcano_plot <- ggplot(data, aes(x=log2FoldChange, y=-log10(padj))) +
     geom_point(aes(color = significant), alpha = 0.6, size = 2) +
     scale_color_manual(values = c("TRUE" = "#c41f1f", "FALSE" = "gray")) +
+    geom_text_repel(aes(label=lab),hjust=1, vjust=1.2,colour = "darkred", size=2) +
     geom_hline(yintercept = -log10(opt$padj_cutoff), linetype = "dashed", color = "#185295") +
     geom_vline(xintercept = c(-opt$l2fc_cutoff, opt$l2fc_cutoff), linetype = "dashed", color = "#185295") +
     scale_x_continuous(limits = c(x_min, x_max)) +
