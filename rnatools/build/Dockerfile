@@ -15,5 +15,7 @@ COPY ./src /src
 # COPY update_user.sh /usr/local/bin/entrypoint.sh
 #RUN chmod +x /src/update_user.sh
 
-# Set the entrypoint to the main.py script with unbuffered output
+# Set the entrypoint to the main.py script with unbuffered output 
 ENTRYPOINT ["python3", "-u", "/src/main.py"]
+# run
+# CMD ["python3", "-u", "/src/main.py"]

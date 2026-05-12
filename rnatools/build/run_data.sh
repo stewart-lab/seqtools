@@ -1,19 +1,20 @@
 #docker pull rmillikin/rnatools:latest
 #docker pull rmillikin/deseq2:latest
 
-# align to human genome
+# align 
+# --no-cache 
 #     -d \
 #   --rm \
+
 docker build -t rmillikin/rnatools:latest ./ 
 docker run \
     -d \
-    --rm \
-    -v /w5home/bmoore/sequencing:/w5home/bmoore/sequencing \
+    -v /w5home/bmoore/sequencing/LFJ_blue_whale:/w5home/bmoore/sequencing/LFJ_blue_whale \
     rmillikin/rnatools:latest \
-    --fastq_dir /w5home/bmoore/sequencing/MSpurgeon/RNAseq/04.Reruns/01.RawData \
-    --reference_genome_dir /w5home/bmoore/sequencing/Homo_sapiens_CRCh38 \
-    --output_dir /w5home/bmoore/sequencing/MSpurgeon/RNAseq/04.Reruns/02.alignment \
-    --resume
+    --fastq_dir /w5home/bmoore/sequencing/LFJ_blue_whale/01.RawData \
+    --reference_genome_dir /w5home/bmoore/sequencing/LFJ_blue_whale/ncbi_genome \
+    --output_dir /w5home/bmoore/sequencing/LFJ_blue_whale/02.alignment \
+
 
 # align to mouse genome
 # docker run \

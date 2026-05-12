@@ -27,6 +27,10 @@ def main():
     resume = args.resume
 
     # check for valid inputs before we start any processing
+    print(f"Checking inputs...")
+    print(f"Fastq directory: {fastq_dir}")
+    print(f"Genome directory: {genome_dir}")
+    print(f"Output directory: {output_dir}")
     _check_inputs(fastq_dir, genome_dir, output_dir)
     print("Inputs are valid!")
 
@@ -81,7 +85,7 @@ def _check_inputs(fastq_dir: str, genome_dir: str, output_dir: str) -> None:
         raise Exception("Reference directory does not exist")
     
     # check to see if the fastq dir contains any fastq files
-    fastq_files = [f for f in os.listdir(fastq_dir) if f.endswith('.fastq') or f.endswith('.fq.gz')]
+    fastq_files = [f for f in os.listdir(fastq_dir) if f.endswith('.fastq') or f.endswith('.fq.gz') or f.endswith('.fastq.gz')]
     if not fastq_files:
         raise Exception("No .fastq files found in the fastq directory")
     
@@ -114,7 +118,7 @@ def _check_inputs(fastq_dir: str, genome_dir: str, output_dir: str) -> None:
 def _run_fastp(fastq_dir: str, fastp_dir: str, timestamped_outdir: str) -> None:
     os.makedirs(fastp_dir, exist_ok=True)
 
-    fastqs = [f for f in os.listdir(fastq_dir) if ('_R1_' in f and f.endswith('.fastq')) or ('1.fq' in f and f.endswith('.gz'))]
+    fastqs = [f for f in os.listdir(fastq_dir) if ('_R1_' in f and f.endswith('.fastq')) or ('1.fq' in f and f.endswith('.gz')) or ('_R1_' in f and f.endswith('.fastq.gz'))]
     fastqs.sort()
 
     # get the list of fastq files that have already been trimmed (in case we are resuming a run)
@@ -135,7 +139,10 @@ def _run_fastp(fastq_dir: str, fastp_dir: str, timestamped_outdir: str) -> None:
             continue
 
         # get input paths
-        if '_R1_' in fastq1:
+        if '_R1_' in fastq1 and fastq1.endswith('.fastq.gz'):
+            fastq2 = fastq1.replace('_R1_', '_R2_')
+            html = fastq1.replace('.fastq.gz', '.html').replace('_R1_', '').replace('001.html', '.html')
+        elif '_R1_' in fastq1 and fastq1.endswith('.fastq'):
             fastq2 = fastq1.replace('_R1_', '_R2_')
             html = fastq1.replace('.fastq', '.html').replace('_R1_', '').replace('001.html', '.html')
         elif '1.fq.gz' in fastq1:
@@ -245,7 +252,7 @@ def _run_rsem_calculate_expression(fastq_dir: str, rsem_dir: str, genome_dir: st
     original_wd = os.getcwd()
     os.chdir(rsem_dir)
 
-    fastqs = [f for f in os.listdir(fastq_dir) if ('_R1_' in f and f.endswith('.fastq')) or ('1.fq' in f and f.endswith('.gz'))]
+    fastqs = [f for f in os.listdir(fastq_dir) if ('_R1_' in f and f.endswith('.fastq')) or ('1.fq' in f and f.endswith('.gz')) or ('_R1_' in f and f.endswith('.fastq.gz'))]
     fastqs.sort()
 
     # get the list of fastq files that have already been aligned (in case we are resuming a run)
