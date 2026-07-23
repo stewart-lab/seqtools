@@ -8,6 +8,7 @@ library(ggrepel)
 library(tidyr)
 library(rrvgo)
 library(org.Dr.eg.db)
+library("org.Hs.eg.db")
 library(tibble)
 
 # Define the command-line options
